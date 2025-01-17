@@ -15,6 +15,7 @@
 #include <vcpkg/commands.create.h>
 #include <vcpkg/commands.deactivate.h>
 #include <vcpkg/commands.depend-info.h>
+#include <vcpkg/commands.depend-on.h>
 #include <vcpkg/commands.download.h>
 #include <vcpkg/commands.edit.h>
 #include <vcpkg/commands.env.h>
@@ -117,6 +118,7 @@ namespace vcpkg
         {CommandCheckSupportMetadata, command_check_support_and_exit},
         {CommandCiMetadata, command_ci_and_exit},
         {CommandDependInfoMetadata, command_depend_info_and_exit},
+        {CommandDependOnMetadata, command_depend_on_and_exit},
         {CommandEnvMetadata, command_env_and_exit},
         {CommandExportMetadata, command_export_and_exit},
         {CommandInstallMetadata, command_install_and_exit},

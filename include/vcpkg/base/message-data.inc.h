@@ -622,6 +622,10 @@ DECLARE_MESSAGE(CmdDependInfoExample1,
                 (),
                 "This is a command line, only the <>s part should be localized",
                 "vcpkg depend-info <port name>")
+DECLARE_MESSAGE(CmdDependOnExample1,
+                (),
+                "This is a command line, only the <>s part should be localized",
+                "vcpkg depend-on <port name>")
 DECLARE_MESSAGE(CmdDependInfoFormatConflict,
                 (),
                 "",
@@ -1648,6 +1652,7 @@ DECLARE_MESSAGE(HelpCachingClear, (), "", "Removes all previous sources, includi
 DECLARE_MESSAGE(HelpContactCommand, (), "", "Displays contact information to send feedback")
 DECLARE_MESSAGE(HelpCreateCommand, (), "", "Creates a new port")
 DECLARE_MESSAGE(HelpDependInfoCommand, (), "", "Displays a list of dependencies for ports")
+DECLARE_MESSAGE(HelpDependOnCommand, (), "", "Displays a list of ports that depend on current port")
 DECLARE_MESSAGE(HelpEditCommand,
                 (msg::env_var),
                 "\"code\" is the name of a program and should not be localized.",
