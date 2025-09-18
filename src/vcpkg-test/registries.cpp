@@ -5,7 +5,7 @@
 
 #include <vcpkg/configuration.h>
 #include <vcpkg/documentation.h>
-#include <vcpkg/registries.h>
+#include <vcpkg/registries-parsing.h>
 
 using namespace vcpkg;
 
@@ -276,7 +276,7 @@ static vcpkg::Optional<Configuration> visit_default_registry(Json::Reader& r, Js
 {
     Json::Object config;
     config.insert("default-registry", std::move(reg));
-    return r.visit(config, get_configuration_deserializer());
+    return configuration_deserializer.visit(r, config);
 }
 
 TEST_CASE ("registry_parsing", "[registries]")
@@ -289,7 +289,7 @@ TEST_CASE ("registry_parsing", "[registries]")
 }
     )json");
         visit_default_registry(r, std::move(test_json));
-        CHECK(!r.errors().empty());
+        CHECK(r.messages().any_errors());
     }
     {
         Json::Reader r{"test"};
@@ -301,7 +301,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     )json");
         visit_default_registry(r, std::move(test_json));
         // Non-SHA strings are allowed and will be diagnosed later
-        CHECK(r.errors().empty());
+        CHECK(!r.messages().any_errors());
     }
     {
         Json::Reader r{"test"};
@@ -313,7 +313,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     )json");
         auto registry_impl = visit_default_registry(r, std::move(test_json));
         REQUIRE(registry_impl);
-        CHECK(r.errors().empty());
+        CHECK(!r.messages().any_errors());
     }
     {
         Json::Reader r{"test"};
@@ -325,7 +325,7 @@ TEST_CASE ("registry_parsing", "[registries]")
 }
     )json");
         visit_default_registry(r, std::move(test_json));
-        CHECK(!r.errors().empty());
+        CHECK(r.messages().any_errors());
     }
     {
         Json::Reader r{"test"};
@@ -337,7 +337,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     )json");
         auto registry_impl = visit_default_registry(r, std::move(test_json));
         REQUIRE(registry_impl);
-        CHECK(r.errors().empty());
+        CHECK(!r.messages().any_errors());
 
         test_json = parse_json(R"json(
 {
@@ -347,7 +347,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     )json");
         registry_impl = visit_default_registry(r, std::move(test_json));
         REQUIRE(registry_impl);
-        CHECK(r.errors().empty());
+        CHECK(!r.messages().any_errors());
     }
 
     auto test_json = parse_json(R"json(
@@ -358,7 +358,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     {
         Json::Reader r{"test"};
         visit_default_registry(r, std::move(test_json));
-        CHECK(!r.errors().empty());
+        CHECK(r.messages().any_errors());
     }
     test_json = parse_json(R"json(
 {
@@ -369,7 +369,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     {
         Json::Reader r{"test"};
         visit_default_registry(r, std::move(test_json));
-        CHECK(!r.errors().empty());
+        CHECK(r.messages().any_errors());
     }
 
     test_json = parse_json(R"json(
@@ -381,7 +381,7 @@ TEST_CASE ("registry_parsing", "[registries]")
     {
         Json::Reader r{"test"};
         visit_default_registry(r, std::move(test_json));
-        CHECK(!r.errors().empty());
+        CHECK(r.messages().any_errors());
     }
 
     test_json = parse_json(R"json(
@@ -396,8 +396,8 @@ TEST_CASE ("registry_parsing", "[registries]")
         Json::Reader r{"test"};
         auto registry_impl = visit_default_registry(r, std::move(test_json));
         REQUIRE(registry_impl);
-        INFO(Strings::join("\n", r.errors()));
-        CHECK(r.errors().empty());
+        INFO(r.messages().join());
+        CHECK(!r.messages().any_errors());
     }
 
     test_json = parse_json(R"json(
@@ -410,8 +410,8 @@ TEST_CASE ("registry_parsing", "[registries]")
     Json::Reader r{"test"};
     auto registry_impl = visit_default_registry(r, std::move(test_json));
     REQUIRE(registry_impl);
-    INFO(Strings::join("\n", r.errors()));
-    CHECK(r.errors().empty());
+    INFO(r.messages().join());
+    CHECK(!r.messages().any_errors());
 }
 
 TEST_CASE ("registries report pattern errors", "[registries]")
@@ -428,20 +428,21 @@ TEST_CASE ("registries report pattern errors", "[registries]")
 })json");
 
     Json::Reader r{"test"};
-    auto maybe_conf = r.visit(test_json, get_configuration_deserializer());
-    const auto& errors = r.errors();
-    CHECK(!errors.empty());
-    REQUIRE(errors.size() == 3);
-    CHECK(errors[0] == "test: error: $.registries[0].packages[1] (a package pattern): \"\" is not a valid package "
-                       "pattern. Package patterns must "
-                       "use only one wildcard character (*) and it must be the last character in the pattern (see " +
-                           docs::registries_url + " for more information).");
-    CHECK(errors[1] ==
+    auto maybe_conf = configuration_deserializer.visit(r, test_json);
+    const auto& lines = r.messages().lines();
+    CHECK(!lines.empty());
+    REQUIRE(lines.size() == 3);
+    CHECK(lines[0].to_string() ==
+          "test: error: $.registries[0].packages[1] (a package pattern): \"\" is not a valid package "
+          "pattern. Package patterns must "
+          "use only one wildcard character (*) and it must be the last character in the pattern (see " +
+              docs::registries_url + " for more information).");
+    CHECK(lines[1].to_string() ==
           "test: error: $.registries[0].packages[2] (a package pattern): \"a*a\" is not a valid package "
           "pattern. Package patterns "
           "must use only one wildcard character (*) and it must be the last character in the pattern (see " +
               docs::registries_url + " for more information).");
-    CHECK(errors[2] ==
+    CHECK(lines[2].to_string() ==
           "test: error: $.registries[0].packages[3] (a package pattern): \"*a\" is not a valid package "
           "pattern. Package patterns "
           "must use only one wildcard character (*) and it must be the last character in the pattern (see " +
@@ -474,7 +475,7 @@ TEST_CASE ("registries ignored patterns warning", "[registries]")
 })json");
 
     Json::Reader r{"test"};
-    auto maybe_conf = r.visit(test_json, get_configuration_deserializer());
+    auto maybe_conf = configuration_deserializer.visit(r, test_json);
 
     auto conf = maybe_conf.get();
     REQUIRE(conf);
@@ -514,9 +515,9 @@ TEST_CASE ("registries ignored patterns warning", "[registries]")
     CHECK((*pkgs)[1] == "bei*");
     CHECK((*pkgs)[2] == "zlib");
 
-    const auto& warnings = r.warnings();
-    REQUIRE(warnings.size() == 3);
-    CHECK(warnings[0] == R"(test: warning: $ (a configuration object): Package "*" is duplicated.
+    const auto& lines = r.messages().lines();
+    REQUIRE(lines.size() == 3);
+    CHECK(lines[0].to_string() == R"(test: warning: $ (a configuration object): Package "*" is duplicated.
   First declared in:
     location: $.registries[0].packages[0]
     registry: https://github.com/Microsoft/vcpkg
@@ -525,7 +526,7 @@ TEST_CASE ("registries ignored patterns warning", "[registries]")
     location: $.registries[2].packages[0]
     registry: https://github.com/another-remote/another-vcpkg-registry
 )");
-    CHECK(warnings[1] == R"(test: warning: $ (a configuration object): Package "bei*" is duplicated.
+    CHECK(lines[1].to_string() == R"(test: warning: $ (a configuration object): Package "bei*" is duplicated.
   First declared in:
     location: $.registries[1].packages[0]
     registry: https://github.com/northwindtraders/vcpkg-registry
@@ -534,7 +535,7 @@ TEST_CASE ("registries ignored patterns warning", "[registries]")
     location: $.registries[2].packages[1]
     registry: https://github.com/another-remote/another-vcpkg-registry
 )");
-    CHECK(warnings[2] == R"(test: warning: $ (a configuration object): Package "zlib" is duplicated.
+    CHECK(lines[2].to_string() == R"(test: warning: $ (a configuration object): Package "zlib" is duplicated.
   First declared in:
     location: $.registries[0].packages[2]
     registry: https://github.com/Microsoft/vcpkg
@@ -550,7 +551,6 @@ TEST_CASE ("registries ignored patterns warning", "[registries]")
 
 TEST_CASE ("git_version_db_parsing", "[registries]")
 {
-    auto filesystem_version_db = make_git_version_db_deserializer();
     Json::Reader r{"test"};
     auto test_json = parse_json(R"json(
 [
@@ -572,7 +572,7 @@ TEST_CASE ("git_version_db_parsing", "[registries]")
 ]
 )json");
 
-    auto results_opt = r.visit(test_json, *filesystem_version_db);
+    auto results_opt = GitVersionDbEntryArrayDeserializer().visit(r, test_json);
     auto& results = results_opt.value_or_exit(VCPKG_LINE_INFO);
     CHECK(results[0].version == SchemedVersion{VersionScheme::Date, {"2021-06-26", 0}});
     CHECK(results[0].git_tree == "9b07f8a38bbc4d13f8411921e6734753e15f8d50");
@@ -580,12 +580,12 @@ TEST_CASE ("git_version_db_parsing", "[registries]")
     CHECK(results[1].git_tree == "12b84a31469a78dd4b42dcf58a27d4600f6b2d48");
     CHECK(results[2].version == SchemedVersion{VersionScheme::String, Version{"2020-04-12", 0}});
     CHECK(results[2].git_tree == "bd4565e8ab55bc5e098a1750fa5ff0bc4406ca9b");
-    CHECK(r.errors().empty());
+    CHECK(!r.messages().any_errors());
 }
 
 TEST_CASE ("filesystem_version_db_parsing", "[registries]")
 {
-    auto filesystem_version_db = make_filesystem_version_db_deserializer("a/b");
+    FilesystemVersionDbEntryArrayDeserializer filesystem_version_db("a/b");
 
     {
         Json::Reader r{"test"};
@@ -608,7 +608,7 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        auto results_opt = r.visit(test_json, *filesystem_version_db);
+        auto results_opt = filesystem_version_db.visit(r, test_json);
         auto& results = results_opt.value_or_exit(VCPKG_LINE_INFO);
         CHECK(results[0].version == SchemedVersion{VersionScheme::String, {"puppies", 0}});
         CHECK(results[0].p == "a/b" VCPKG_PREFERRED_SEPARATOR "c/d");
@@ -616,7 +616,7 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
         CHECK(results[1].p == "a/b" VCPKG_PREFERRED_SEPARATOR "e/d");
         CHECK(results[2].version == SchemedVersion{VersionScheme::Semver, {"1.2.3", 0}});
         CHECK(results[2].p == "a/b" VCPKG_PREFERRED_SEPARATOR "semvers/here");
-        CHECK(r.errors().empty());
+        CHECK(!r.messages().any_errors());
     }
 
     { // missing $/
@@ -630,8 +630,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 
     { // uses backslash
@@ -645,8 +645,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 
     { // doubled slash
@@ -660,8 +660,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 
     { // dot path (first)
@@ -675,8 +675,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 
     { // dot path (mid)
@@ -690,8 +690,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 
     { // dot path (last)
@@ -705,8 +705,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 
     { // dot dot path (first)
@@ -720,8 +720,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 
     { // dot dot path (mid)
@@ -735,8 +735,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 
     { // dot dot path (last)
@@ -750,8 +750,8 @@ TEST_CASE ("filesystem_version_db_parsing", "[registries]")
     }
 ]
     )json");
-        CHECK(r.visit(test_json, *filesystem_version_db).value_or_exit(VCPKG_LINE_INFO).empty());
-        CHECK(!r.errors().empty());
+        CHECK(filesystem_version_db.visit(r, test_json).value_or_exit(VCPKG_LINE_INFO).empty());
+        CHECK(r.messages().any_errors());
     }
 }
 

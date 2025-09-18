@@ -26,6 +26,12 @@ extern char** environ;
 #include <sys/wait.h>
 #endif
 
+#if defined(__SVR4) && defined(__sun)
+extern char** environ;
+#include <stdio.h>
+#include <unistd.h>
+#endif
+
 #if defined(_WIN32)
 #include <Psapi.h>
 #include <TlHelp32.h>
@@ -75,7 +81,7 @@ namespace
                 // Ctrl-C was hit while blocked on the child process
                 // This is the last external process to complete
                 // Therefore, exit
-                Checks::final_cleanup_and_exit(1);
+                Checks::log_final_cleanup_and_exit(VCPKG_LINE_INFO, 1);
             }
             else if (previous < 0)
             {
@@ -104,7 +110,7 @@ namespace
             if (old_value == 0)
             {
                 // Not currently blocked on a child process
-                Checks::final_cleanup_and_exit(1);
+                Checks::log_final_cleanup_and_exit(VCPKG_LINE_INFO, 1);
             }
             else
             {
@@ -249,6 +255,13 @@ namespace vcpkg
         char* exePath(realpath(argv[0], buf));
         Checks::check_exit(VCPKG_LINE_INFO, exePath != nullptr, "Could not determine current executable path.");
         return Path(exePath);
+#elif defined(__SVR4) && defined(__sun)
+        char procpath[PATH_MAX];
+        (void)snprintf(procpath, sizeof(procpath), "/proc/%d/path/a.out", getpid());
+        char buf[PATH_MAX];
+        auto written = readlink(procpath, buf, sizeof(buf));
+        Checks::check_exit(VCPKG_LINE_INFO, written != -1, "Could not determine current executable path.");
+        return Path(buf, written);
 #else /* LINUX */
         char buf[1024 * 4] = {};
         auto written = readlink("/proc/self/exe", buf, sizeof(buf));
@@ -545,7 +558,9 @@ namespace vcpkg
                         system32_env,
                         "\\Wbem;",
                         system32_env,
-                        "\\WindowsPowerShell\\v1.0\\");
+                        "\\WindowsPowerShell\\v1.0\\;",
+                        system32_env,
+                        "\\OpenSSH\\");
 
         std::vector<std::string> env_strings = {
             "ALLUSERSPROFILE",
@@ -587,6 +602,7 @@ namespace vcpkg
             // Enables proxy information to be passed to Curl, the underlying download library in cmake.exe
             "http_proxy",
             "https_proxy",
+            "no_proxy",
             // Environment variables to tell git to use custom SSH executable or command
             "GIT_SSH",
             "GIT_SSH_COMMAND",
@@ -1227,7 +1243,11 @@ namespace
             if (pid != -1)
             {
                 int status;
-                const auto child = waitpid(pid, &status, 0);
+                pid_t child;
+                do
+                {
+                    child = waitpid(pid, &status, 0);
+                } while (child == -1 && errno == EINTR);
                 if (child != pid)
                 {
                     context.report_system_error("waitpid", errno);
@@ -1644,6 +1664,19 @@ namespace
                     data_cb(StringView{encoded});
                 };
                 break;
+            case Encoding::Utf8WithNulls:
+                raw_cb = [&](char* buf, size_t bytes_read) {
+                    if (settings.echo_in_debug == EchoInDebug::Show && Debug::g_debugging)
+                    {
+                        msg::write_unlocalized_text_to_stdout(Color::none,
+                                                              Strings::replace_all(StringView{buf, bytes_read},
+                                                                                   StringLiteral{"\0"},
+                                                                                   StringLiteral{"\\0"}));
+                    }
+
+                    data_cb(StringView{buf, bytes_read});
+                };
+                break;
             default: vcpkg::Checks::unreachable(VCPKG_LINE_INFO);
         }
 
@@ -1840,11 +1873,28 @@ namespace
             }
 
             StringView this_read_data{buf, static_cast<size_t>(read_amount)};
-            data_cb(this_read_data);
-            if (settings.echo_in_debug == EchoInDebug::Show && Debug::g_debugging)
+            switch (settings.encoding)
             {
-                msg::write_unlocalized_text(Color::none, this_read_data);
+                case Encoding::Utf8:
+                    std::replace(buf, buf + read_amount, '\0', '?');
+                    if (settings.echo_in_debug == EchoInDebug::Show && Debug::g_debugging)
+                    {
+                        msg::write_unlocalized_text(Color::none, this_read_data);
+                    }
+                    break;
+                case Encoding::Utf8WithNulls:
+                    if (settings.echo_in_debug == EchoInDebug::Show && Debug::g_debugging)
+                    {
+                        msg::write_unlocalized_text_to_stdout(
+                            Color::none,
+                            Strings::replace_all(this_read_data, StringLiteral{"\0"}, StringLiteral{"\\0"}));
+                    }
+
+                    break;
+                default: Checks::unreachable(VCPKG_LINE_INFO); break;
             }
+
+            data_cb(this_read_data);
         }
 
         return pid.wait_for_termination(context);
@@ -1970,9 +2020,26 @@ namespace vcpkg
                 expected_right_tag};
     }
 
+    void replace_secrets(std::string& target, View<std::string> secrets)
+    {
+        const auto replacement = msg::format(msgSecretBanner);
+        for (const auto& secret : secrets)
+        {
+            Strings::inplace_replace_all(target, secret, replacement);
+        }
+    }
+
     std::string* check_zero_exit_code(DiagnosticContext& context,
+                                      const Command& command,
+                                      Optional<ExitCodeAndOutput>& maybe_exit)
+    {
+        return check_zero_exit_code(context, command, maybe_exit, View<std::string>{});
+    }
+
+    std::string* check_zero_exit_code(DiagnosticContext& context,
+                                      const Command& command,
                                       Optional<ExitCodeAndOutput>& maybe_exit,
-                                      StringView exe_path)
+                                      View<std::string> secrets)
     {
         if (auto exit = maybe_exit.get())
         {
@@ -1981,10 +2048,15 @@ namespace vcpkg
                 return &exit->output;
             }
 
-            context.report(
-                DiagnosticLine{DiagKind::Error,
-                               exe_path,
-                               msg::format(msgProgramPathReturnedNonzeroExitCode, msg::exit_code = exit->exit_code)});
+            auto str_command = command.command_line().to_string();
+            replace_secrets(str_command, secrets);
+            context.report(DiagnosticLine{
+                DiagKind::Error,
+                LocalizedString::from_raw(str_command)
+                    .append_raw(' ')
+                    .append(msg::format(msgProgramPathReturnedNonzeroExitCode, msg::exit_code = exit->exit_code))
+                    .append_raw('\n')
+                    .append_raw(exit->output)});
         }
 
         return nullptr;

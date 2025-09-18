@@ -87,10 +87,13 @@ namespace
 
 namespace vcpkg
 {
+    // NOTE: New metric names should use `_` instead of `-` to simplify query syntax.
     const constexpr DefineMetricEntry all_define_metrics[static_cast<size_t>(DefineMetric::COUNT)] = {
         {DefineMetric::AssetSource, "asset-source"},
         {DefineMetric::BinaryCachingAws, "binarycaching_aws"},
         {DefineMetric::BinaryCachingAzBlob, "binarycaching_azblob"},
+        {DefineMetric::BinaryCachingAzCopy, "binarycaching_azcopy"},
+        {DefineMetric::BinaryCachingAzCopySas, "binarycaching_azcopy_sas"},
         {DefineMetric::BinaryCachingCos, "binarycaching_cos"},
         {DefineMetric::BinaryCachingDefault, "binarycaching_default"},
         {DefineMetric::BinaryCachingFiles, "binarycaching_files"},
@@ -124,18 +127,24 @@ namespace vcpkg
                                            "0000000011111111aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffff:"
                                            "0000000011111111aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffff";
 
+    // NOTE: New metric names should use `_` instead of `-` to simplify query syntax.
     const constexpr StringMetricEntry all_string_metrics[static_cast<size_t>(StringMetric::COUNT)] = {
         // registryUri:id:version,...
         {StringMetric::AcquiredArtifacts, "acquired_artifacts", plan_example},
         {StringMetric::ActivatedArtifacts, "activated_artifacts", plan_example},
+        {StringMetric::CiOwnerId, "ci_owner_id", "0"},
+        {StringMetric::CiProjectId, "ci_project_id", "0"},
         {StringMetric::CommandArgs, "command_args", "0000000011111111aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffff"},
         {StringMetric::CommandContext, "command_context", "artifact"},
         {StringMetric::CommandName, "command_name", "z-preregister-telemetry"},
         {StringMetric::DeploymentKind, "deployment_kind", "Git"},
         {StringMetric::DetectedCiEnvironment, "detected_ci_environment", "Generic"},
+        {StringMetric::DetectedLibCurlVersion, "detected_libcurl_version", "libcurl/8.5.0 OpenSSL/3.0.13"},
         {StringMetric::DevDeviceId, "devdeviceid", "00000000-0000-0000-0000-000000000000"},
-        {StringMetric::CiProjectId, "ci_project_id", "0"},
-        {StringMetric::CiOwnerId, "ci_owner_id", "0"},
+        {StringMetric::ExitCode, "exit_code", "0"},
+        {StringMetric::ExitLocation,
+         "exit_location",
+         "0000000011111111aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffff:1"},
         // spec:triplet:version,...
         {StringMetric::InstallPlan_1, "installplan_1", plan_example},
         {StringMetric::ListFile, "listfile", "update to new format"},
@@ -149,6 +158,7 @@ namespace vcpkg
         {StringMetric::Warning, "warning", "warning"},
     };
 
+    // NOTE: New metric names should use `_` instead of `-` to simplify query syntax.
     const constexpr BoolMetricEntry all_bool_metrics[static_cast<size_t>(BoolMetric::COUNT)] = {
         {BoolMetric::DetectedContainer, "detected_container"},
         {BoolMetric::DependencyGraphSuccess, "dependency-graph-success"},
@@ -441,8 +451,8 @@ namespace vcpkg
                 buildtime_times.push_back(Json::Value::number(buildtime.second));
             }
 
-            properties.insert("buildnames_1", buildtime_names);
-            properties.insert("buildtimes", buildtime_times);
+            properties.insert("buildnames_1", std::move(buildtime_names));
+            properties.insert("buildtimes", std::move(buildtime_times));
         }
 
         Json::Object& measurements = base_data.insert("measurements", Json::Object());

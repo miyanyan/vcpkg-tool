@@ -54,8 +54,9 @@ namespace vcpkg
                 [my_triplet](const ParsedQualifiedSpecifier& dep) {
                     // for compatibility with previous vcpkg versions, we discard all irrelevant information
                     return PackageSpec{
-                        dep.name,
-                        dep.triplet.map([](auto&& s) { return Triplet::from_canonical_name(std::string(s)); })
+                        dep.name.value,
+                        dep.triplet
+                            .map([](const Located<std::string>& s) { return Triplet::from_canonical_name(s.value); })
                             .value_or(my_triplet),
                     };
                 });
@@ -156,8 +157,6 @@ namespace vcpkg
 
         return fmt::format("{}[{}]:{}", this->spec.name(), this->feature, this->spec.triplet());
     }
-
-    std::string BinaryParagraph::dir() const { return this->spec.dir(); }
 
     std::string BinaryParagraph::fullstem() const
     {

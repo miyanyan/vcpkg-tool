@@ -30,6 +30,7 @@ namespace vcpkg
     inline constexpr StringLiteral JsonIdCacheCapitalSize = "cacheSize";
     inline constexpr StringLiteral JsonIdChecksums = "checksums";
     inline constexpr StringLiteral JsonIdComment = "comment";
+    inline constexpr StringLiteral JsonIdConfiguration = "configuration";
     inline constexpr StringLiteral JsonIdContacts = "contacts";
     inline constexpr StringLiteral JsonIdCorrelator = "correlator";
     inline constexpr StringLiteral JsonIdCreated = "created";
@@ -125,7 +126,6 @@ namespace vcpkg
     // would use in other contexts.
     inline constexpr StringLiteral SpdxCCZero = "CC0-1.0";
     inline constexpr StringLiteral SpdxChecksumValue = "checksumValue";
-    inline constexpr StringLiteral SpdxContainedBy = "CONTAINED_BY";
     inline constexpr StringLiteral SpdxContains = "CONTAINS";
     inline constexpr StringLiteral SpdxCopyrightText = "copyrightText";
     inline constexpr StringLiteral SpdxCreationInfo = "creationInfo";
@@ -135,10 +135,10 @@ namespace vcpkg
     inline constexpr StringLiteral SpdxDownloadLocation = "downloadLocation";
     inline constexpr StringLiteral SpdxElementId = "spdxElementId";
     inline constexpr StringLiteral SpdxFileName = "fileName";
-    inline constexpr StringLiteral SpdxGeneratedFrom = "GENERATED_FROM";
     inline constexpr StringLiteral SpdxGenerates = "GENERATES";
     inline constexpr StringLiteral SpdxLicenseConcluded = "licenseConcluded";
     inline constexpr StringLiteral SpdxLicenseDeclared = "licenseDeclared";
+    inline constexpr StringLiteral SpdxLicenseRefVcpkgNull = "LicenseRef-vcpkg-null";
     inline constexpr StringLiteral SpdxNoAssertion = "NOASSERTION";
     inline constexpr StringLiteral SpdxNone = "NONE";
     inline constexpr StringLiteral SpdxPackageFileName = "packageFileName";
@@ -193,6 +193,7 @@ namespace vcpkg
     inline constexpr StringLiteral SwitchBuiltinPortsRoot = "builtin-ports-root";
     inline constexpr StringLiteral SwitchBuiltinRegistryVersionsDir = "builtin-registry-versions-dir";
     inline constexpr StringLiteral SwitchCIBaseline = "ci-baseline";
+    inline constexpr StringLiteral SwitchCIFeatureBaseline = "ci-feature-baseline";
     inline constexpr StringLiteral SwitchClassic = "classic";
     inline constexpr StringLiteral SwitchCleanAfterBuild = "clean-after-build";
     inline constexpr StringLiteral SwitchCleanBuildtreesAfterBuild = "clean-buildtrees-after-build";
@@ -214,37 +215,39 @@ namespace vcpkg
     inline constexpr StringLiteral SwitchEditable = "editable";
     inline constexpr StringLiteral SwitchEnforcePortChecks = "enforce-port-checks";
     inline constexpr StringLiteral SwitchExclude = "exclude";
+    inline constexpr StringLiteral SwitchFailingAbiLog = "failing-abi-log";
     inline constexpr StringLiteral SwitchFailureLogs = "failure-logs";
     inline constexpr StringLiteral SwitchFeatureFlags = "feature-flags";
+    inline constexpr StringLiteral SwitchFix = "fix";
     inline constexpr StringLiteral SwitchForce = "force";
     inline constexpr StringLiteral SwitchFormat = "format";
+    inline constexpr StringLiteral SwitchForMergeWith = "for-merge-with";
     inline constexpr StringLiteral SwitchFreeBsd = "freebsd";
     inline constexpr StringLiteral SwitchHead = "head";
     inline constexpr StringLiteral SwitchHeader = "header";
     inline constexpr StringLiteral SwitchHostExclude = "host-exclude";
     inline constexpr StringLiteral SwitchHostTriplet = "host-triplet";
-    inline constexpr StringLiteral SwitchIfw = "ifw";
-    inline constexpr StringLiteral SwitchIfwConfigFilePath = "ifw-configuration-file-path";
-    inline constexpr StringLiteral SwitchIfwInstallerFilePath = "ifw-installer-file-path";
-    inline constexpr StringLiteral SwitchIfwPackagesDirPath = "ifw-packages-directory-path";
-    inline constexpr StringLiteral SwitchIfwRepositoryUrl = "ifw-repository-url";
-    inline constexpr StringLiteral SwitchIfwRepostitoryDirPath = "ifw-repository-directory-path";
+    inline constexpr StringLiteral SwitchDereferenceSymlinks = "dereference-symlinks";
     inline constexpr StringLiteral SwitchIgnoreLockFailures = "ignore-lock-failures";
     inline constexpr StringLiteral SwitchInclude = "include";
     inline constexpr StringLiteral SwitchInstalledBinDir = "installed-bin-dir";
     inline constexpr StringLiteral SwitchInstallRoot = "install-root";
     inline constexpr StringLiteral SwitchJson = "json";
     inline constexpr StringLiteral SwitchKeepGoing = "keep-going";
+    inline constexpr StringLiteral SwitchKnownFailuresFrom = "known-failures-from";
     inline constexpr StringLiteral SwitchLinux = "linux";
     inline constexpr StringLiteral SwitchManifestRoot = "manifest-root";
     inline constexpr StringLiteral SwitchMaxRecurse = "max-recurse";
     inline constexpr StringLiteral SwitchMSBuildProps = "msbuild-props";
     inline constexpr StringLiteral SwitchName = "name";
+    inline constexpr StringLiteral SwitchNoCombined = "no-combined";
+    inline constexpr StringLiteral SwitchNoCore = "no-core";
     inline constexpr StringLiteral SwitchNoDownloads = "no-downloads";
     inline constexpr StringLiteral SwitchNoDryRun = "no-dry-run";
     inline constexpr StringLiteral SwitchNoKeepGoing = "no-keep-going";
     inline constexpr StringLiteral SwitchNoOutputComments = "no-output-comments";
     inline constexpr StringLiteral SwitchNoPrintUsage = "no-print-usage";
+    inline constexpr StringLiteral SwitchNoSeparated = "no-separated";
     inline constexpr StringLiteral SwitchNormalize = "normalize";
     inline constexpr StringLiteral SwitchNuGet = "nuget";
     inline constexpr StringLiteral SwitchNuGetDescription = "nuget-description";
@@ -252,6 +255,7 @@ namespace vcpkg
     inline constexpr StringLiteral SwitchNuGetVersion = "nuget-version";
     inline constexpr StringLiteral SwitchOnlyBinarycaching = "only-binarycaching";
     inline constexpr StringLiteral SwitchOnlyDownloads = "only-downloads";
+    inline constexpr StringLiteral SwitchOnlyWithName = "only-with-name";
     inline constexpr StringLiteral SwitchOsx = "osx";
     inline constexpr StringLiteral SwitchOutdated = "outdated";
     inline constexpr StringLiteral SwitchOutput = "output";
@@ -262,14 +266,6 @@ namespace vcpkg
     inline constexpr StringLiteral SwitchOverwriteVersion = "overwrite-version";
     inline constexpr StringLiteral SwitchPackagesRoot = "packages-root";
     inline constexpr StringLiteral SwitchParentHashes = "parent-hashes";
-    inline constexpr StringLiteral SwitchPrefab = "prefab";
-    inline constexpr StringLiteral SwitchPrefabArtifactId = "prefab-artifact-id";
-    inline constexpr StringLiteral SwitchPrefabDebug = "prefab-debug";
-    inline constexpr StringLiteral SwitchPrefabGroupId = "prefab-group-id";
-    inline constexpr StringLiteral SwitchPrefabMaven = "prefab-maven";
-    inline constexpr StringLiteral SwitchPrefabMinSdk = "prefab-min-sdk";
-    inline constexpr StringLiteral SwitchPrefabTargetSdk = "prefab-target-sdk";
-    inline constexpr StringLiteral SwitchPrefabVersion = "prefab-version";
     inline constexpr StringLiteral SwitchPrintmetrics = "printmetrics";
     inline constexpr StringLiteral SwitchPurge = "purge";
     inline constexpr StringLiteral SwitchPython = "python";
@@ -311,18 +307,14 @@ namespace vcpkg
     inline constexpr StringLiteral SwitchX64 = "x64";
     inline constexpr StringLiteral SwitchX86 = "x86";
     inline constexpr StringLiteral SwitchXAllInstalled = "x-all-installed";
-    inline constexpr StringLiteral SwitchXChocolatey = "x-chocolatey";
     inline constexpr StringLiteral SwitchXFeature = "x-feature";
     inline constexpr StringLiteral SwitchXFullDesc = "x-full-desc";
     inline constexpr StringLiteral SwitchXInstalled = "x-installed";
     inline constexpr StringLiteral SwitchXJson = "x-json";
-    inline constexpr StringLiteral SwitchXMaintainer = "x-maintainer";
     inline constexpr StringLiteral SwitchXNoDefaultFeatures = "x-no-default-features";
     inline constexpr StringLiteral SwitchXProhibitBackcompatFeatures = "x-prohibit-backcompat-features";
     inline constexpr StringLiteral SwitchXRandomize = "x-randomize";
     inline constexpr StringLiteral SwitchXTransitive = "x-transitive";
-    inline constexpr StringLiteral SwitchXUseAria2 = "x-use-aria2";
-    inline constexpr StringLiteral SwitchXVersionSuffix = "x-version-suffix";
     inline constexpr StringLiteral SwitchXWriteNuGetPackagesConfig = "x-write-nuget-packages-config";
     inline constexpr StringLiteral SwitchXXUnit = "x-xunit";
     inline constexpr StringLiteral SwitchXXUnitAll = "x-xunit-all";
@@ -338,6 +330,7 @@ namespace vcpkg
     // File names
     inline constexpr StringLiteral FileBaselineDotJson = "baseline.json";
     inline constexpr StringLiteral FileBin = "bin";
+    inline constexpr StringLiteral FileBuildInfo = "BUILD_INFO";
     inline constexpr StringLiteral FileControl = "CONTROL";
     inline constexpr StringLiteral FileCompilerFileHashCacheDotJson = "compiler-file-hash-cache.json";
     inline constexpr StringLiteral FileCopying = "COPYING";
@@ -348,12 +341,15 @@ namespace vcpkg
     inline constexpr StringLiteral FileInclude = "include";
     inline constexpr StringLiteral FileIncomplete = "incomplete";
     inline constexpr StringLiteral FileInfo = "info";
+    inline constexpr StringLiteral FileIssueBodyMD = "issue_body.md";
     inline constexpr StringLiteral FileLicense = "LICENSE";
     inline constexpr StringLiteral FileLicenseDotTxt = "LICENSE.txt";
     inline constexpr StringLiteral FilePortfileDotCMake = "portfile.cmake";
+    inline constexpr StringLiteral FileReadmeDotLog = "readme.log";
     inline constexpr StringLiteral FileShare = "share";
     inline constexpr StringLiteral FileStatus = "status";
     inline constexpr StringLiteral FileStatusNew = "status-new";
+    inline constexpr StringLiteral FileTestedSpecDotTxt = "tested-spec.txt";
     inline constexpr StringLiteral FileTools = "tools";
     inline constexpr StringLiteral FileUpdates = "updates";
     inline constexpr StringLiteral FileUsage = "usage";
@@ -363,6 +359,7 @@ namespace vcpkg
     inline constexpr StringLiteral FileVcpkgConfigurationDotJson = "vcpkg-configuration.json";
     inline constexpr StringLiteral FileVcpkgDotJson = "vcpkg.json";
     inline constexpr StringLiteral FileVcpkgLock = "vcpkg-lock.json";
+    inline constexpr StringLiteral FileManifestInfo = "manifest-info.json";
     inline constexpr StringLiteral FileVcpkgPathTxt = "vcpkg.path.txt";
     inline constexpr StringLiteral FileVcpkgPortConfig = "vcpkg-port-config.cmake";
     inline constexpr StringLiteral FileVcpkgSpdxJson = "vcpkg.spdx.json";
@@ -386,7 +383,6 @@ namespace vcpkg
     inline constexpr StringLiteral CMakeVariableDisableCompilerTracking = "VCPKG_DISABLE_COMPILER_TRACKING";
     inline constexpr StringLiteral CMakeVariableDownloadMode = "VCPKG_DOWNLOAD_MODE";
     inline constexpr StringLiteral CMakeVariableDownloads = "DOWNLOADS";
-    inline constexpr StringLiteral CMakeVariableDownloadTool = "_VCPKG_DOWNLOAD_TOOL";
     inline constexpr StringLiteral CMakeVariableEditable = "_VCPKG_EDITABLE";
     inline constexpr StringLiteral CMakeVariableEnvPassthrough = "VCPKG_ENV_PASSTHROUGH";
     inline constexpr StringLiteral CMakeVariableEnvPassthroughUntracked = "VCPKG_ENV_PASSTHROUGH_UNTRACKED";
@@ -485,8 +481,6 @@ namespace vcpkg
     inline constexpr StringLiteral PolicySkipUsageInstallCheck = "PolicySkipUsageInstallCheck";
 
     // Environment variables are ALL_CAPS_WITH_UNDERSCORES
-    inline constexpr StringLiteral EnvironmentVariableActionsCacheUrl = "ACTIONS_CACHE_URL";
-    inline constexpr StringLiteral EnvironmentVariableActionsRuntimeToken = "ACTIONS_RUNTIME_TOKEN";
     inline constexpr StringLiteral EnvironmentVariableAndroidNdkHome = "ANDROID_NDK_HOME";
     inline constexpr StringLiteral EnvironmentVariableAppData = "APPDATA";
     inline constexpr StringLiteral EnvironmentVariableAppveyor = "APPVEYOR";
@@ -515,6 +509,7 @@ namespace vcpkg
     inline constexpr StringLiteral EnvironmentVariableHome = "HOME";
     inline constexpr StringLiteral EnvironmentVariableHttpProxy = "HTTP_PROXY";
     inline constexpr StringLiteral EnvironmentVariableHttpsProxy = "HTTPS_PROXY";
+    inline constexpr StringLiteral EnvironmentVariableNoProxy = "NO_PROXY";
     inline constexpr StringLiteral EnvironmentVariableInclude = "INCLUDE";
     inline constexpr StringLiteral EnvironmentVariableJenkinsHome = "JENKINS_HOME";
     inline constexpr StringLiteral EnvironmentVariableJenkinsUrl = "JENKINS_URL";
@@ -526,6 +521,7 @@ namespace vcpkg
     inline constexpr StringLiteral EnvironmentVariableProgramFilesX86 = "ProgramFiles(x86)";
     inline constexpr StringLiteral EnvironmentVariableProgramW6432 = "ProgramW6432";
     inline constexpr StringLiteral EnvironmentVariablePythonPath = "PYTHONPATH";
+    inline constexpr StringLiteral EnvironmentVariableSystemDrive = "SystemDrive";
     inline constexpr StringLiteral EnvironmentVariableSystemRoot = "SystemRoot";
     inline constexpr StringLiteral EnvironmentVariableTeamcityVersion = "TEAMCITY_VERSION";
     inline constexpr StringLiteral EnvironmentVariableTfBuild = "TF_BUILD";
@@ -584,6 +580,7 @@ namespace vcpkg
     inline constexpr StringLiteral AbiTagPostBuildChecks = "post_build_checks";
     inline constexpr StringLiteral AbiTagPowershell = "powershell";
     inline constexpr StringLiteral AbiTagPublicAbiOverride = "public_abi_override";
+    inline constexpr StringLiteral AbiTagSbomInfo = "sbom_info";
 
     inline constexpr StringLiteral StatusDeinstall = "deinstall";
     inline constexpr StringLiteral StatusError = "error";

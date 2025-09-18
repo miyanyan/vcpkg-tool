@@ -22,6 +22,7 @@
 #include <vcpkg/commands.export.h>
 #include <vcpkg/commands.fetch.h>
 #include <vcpkg/commands.find.h>
+#include <vcpkg/commands.format-feature-baselinet.h>
 #include <vcpkg/commands.format-manifest.h>
 #include <vcpkg/commands.generate-msbuild-props.h>
 #include <vcpkg/commands.h>
@@ -30,6 +31,7 @@
 #include <vcpkg/commands.init-registry.h>
 #include <vcpkg/commands.install.h>
 #include <vcpkg/commands.integrate.h>
+#include <vcpkg/commands.license-report.h>
 #include <vcpkg/commands.list.h>
 #include <vcpkg/commands.new.h>
 #include <vcpkg/commands.owns.h>
@@ -39,6 +41,7 @@
 #include <vcpkg/commands.remove.h>
 #include <vcpkg/commands.search.h>
 #include <vcpkg/commands.set-installed.h>
+#include <vcpkg/commands.test-features.h>
 #include <vcpkg/commands.update-baseline.h>
 #include <vcpkg/commands.update-registry.h>
 #include <vcpkg/commands.update.h>
@@ -49,6 +52,7 @@
 #include <vcpkg/commands.z-applocal.h>
 #include <vcpkg/commands.z-ce.h>
 #include <vcpkg/commands.z-changelog.h>
+#include <vcpkg/commands.z-check-tools-sha.h>
 #include <vcpkg/commands.z-extract.h>
 #include <vcpkg/commands.z-generate-message-map.h>
 #include <vcpkg/commands.z-preregister-telemetry.h>
@@ -62,7 +66,9 @@ namespace vcpkg
         {CommandBootstrapStandaloneMetadata, command_bootstrap_standalone_and_exit},
         {CommandContactMetadata, command_contact_and_exit},
         {CommandDownloadMetadata, command_download_and_exit},
+        {CommandFormatFeatureBaselineMetadata, command_format_feature_baseline_and_exit},
         {CommandHashMetadata, command_hash_and_exit},
+        {CommandCheckToolsShaMetadata, command_check_tools_sha_and_exit},
         {CommandInitRegistryMetadata, command_init_registry_and_exit},
         {CommandVersionMetadata, command_version_and_exit},
 #if defined(_WIN32)
@@ -93,6 +99,7 @@ namespace vcpkg
         {CommandFormatManifestMetadata, command_format_manifest_and_exit},
         {CommandHelpMetadata, command_help_and_exit},
         {CommandIntegrateMetadata, command_integrate_and_exit},
+        {CommandLicenseReportMetadata, command_license_report_and_exit},
         {CommandListMetadata, command_list_and_exit},
         {CommandNewMetadata, command_new_and_exit},
         {CommandOwnsMetadata, command_owns_and_exit},
@@ -123,6 +130,7 @@ namespace vcpkg
         {CommandExportMetadata, command_export_and_exit},
         {CommandInstallMetadata, command_install_and_exit},
         {CommandRemoveMetadata, command_remove_and_exit},
+        {CommandTestFeaturesMetadata, command_test_features_and_exit},
         {CommandSetInstalledMetadata, command_set_installed_and_exit},
         {CommandUpgradeMetadata, command_upgrade_and_exit},
         {CommandZPrintConfigMetadata, command_z_print_config_and_exit},

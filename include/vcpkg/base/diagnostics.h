@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vcpkg/base/fwd/diagnostics.h>
+
 #include <vcpkg/base/expected.h>
 #include <vcpkg/base/message_sinks.h>
 #include <vcpkg/base/messages.h>
@@ -12,16 +14,6 @@
 
 namespace vcpkg
 {
-    enum class DiagKind
-    {
-        None,    // foo.h: localized
-        Message, // foo.h: message: localized
-        Error,   // foo.h: error: localized
-        Warning, // foo.h: warning: localized
-        Note,    // foo.h: note: localized
-        COUNT
-    };
-
     struct TextRowCol
     {
         // '0' indicates that line and column information is unknown; '1' is the first row/column
@@ -76,12 +68,20 @@ namespace vcpkg
         DiagnosticLine reduce_to_warning() const&;
         DiagnosticLine reduce_to_warning() &&;
 
+        const LocalizedString& message_text() const noexcept { return m_message; }
+
     private:
-        DiagnosticLine(DiagKind kind,
+        struct InternalTag
+        {
+        };
+
+        DiagnosticLine(InternalTag,
+                       DiagKind kind,
                        const Optional<std::string>& origin,
                        TextRowCol position,
                        const LocalizedString& message);
-        DiagnosticLine(DiagKind kind, Optional<std::string>&& origin, TextRowCol position, LocalizedString&& message);
+        DiagnosticLine(
+            InternalTag, DiagKind kind, Optional<std::string>&& origin, TextRowCol position, LocalizedString&& message);
 
         DiagKind m_kind;
         Optional<std::string> m_origin;
@@ -242,10 +242,6 @@ namespace vcpkg
         DiagnosticContext& inner_context;
     };
 
-    extern DiagnosticContext& console_diagnostic_context;
-    extern DiagnosticContext& status_only_diagnostic_context;
-    extern DiagnosticContext& null_diagnostic_context;
-
     // The following overloads are implementing
     // adapt_context_to_expected(Fn functor, Args&&... args)
     //
@@ -315,9 +311,8 @@ namespace vcpkg
 
     // The overload for functors that return Optional<T>
     template<class Fn, class... Args>
-    auto adapt_context_to_expected(Fn functor, Args&&... args)
-        -> ExpectedL<
-            typename AdaptContextUnwrapOptional<std::invoke_result_t<Fn, BufferedDiagnosticContext&, Args...>>::type>
+    auto adapt_context_to_expected(Fn functor, Args&&... args) -> ExpectedL<
+        typename AdaptContextUnwrapOptional<std::invoke_result_t<Fn, BufferedDiagnosticContext&, Args...>>::type>
     {
         using Unwrapper = AdaptContextUnwrapOptional<std::invoke_result_t<Fn, BufferedDiagnosticContext&, Args...>>;
         using ReturnType = ExpectedL<typename Unwrapper::type>;
@@ -385,9 +380,8 @@ namespace vcpkg
 
     // The overload for functors that return std::unique_ptr<T>
     template<class Fn, class... Args>
-    auto adapt_context_to_expected(Fn functor, Args&&... args)
-        -> ExpectedL<
-            typename AdaptContextDetectUniquePtr<std::invoke_result_t<Fn, BufferedDiagnosticContext&, Args...>>::type>
+    auto adapt_context_to_expected(Fn functor, Args&&... args) -> ExpectedL<
+        typename AdaptContextDetectUniquePtr<std::invoke_result_t<Fn, BufferedDiagnosticContext&, Args...>>::type>
     {
         using ReturnType = ExpectedL<
             typename AdaptContextDetectUniquePtr<std::invoke_result_t<Fn, BufferedDiagnosticContext&, Args...>>::type>;

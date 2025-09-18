@@ -59,8 +59,6 @@ namespace vcpkg
                                                            const ReadOnlyFilesystem& fs,
                                                            StringView port_name);
 
-        ExpectedL<Unit> load_all_port_subdirectories(const ReadOnlyFilesystem& fs);
-
         const ExpectedL<SourceControlFileAndLocation>* try_load_port_subdirectory_with_cache(
             const ReadOnlyFilesystem& fs, StringView port_name);
     };
@@ -86,7 +84,6 @@ namespace vcpkg
 
     struct IVersionedPortfileProvider
     {
-        virtual View<Version> get_port_versions(StringView port_name) const = 0;
         virtual ~IVersionedPortfileProvider() = default;
 
         virtual ExpectedL<const SourceControlFileAndLocation&> get_control_file(

@@ -24,14 +24,13 @@ namespace vcpkg
         static constexpr StringLiteral GSUTIL = "gsutil";
         static constexpr StringLiteral AWSCLI = "aws";
         static constexpr StringLiteral AZCLI = "az";
+        static constexpr StringLiteral AZCOPY = "azcopy";
         static constexpr StringLiteral COSCLI = "coscli";
         static constexpr StringLiteral MONO = "mono";
         static constexpr StringLiteral NINJA = "ninja";
         static constexpr StringLiteral POWERSHELL_CORE = "powershell-core";
         static constexpr StringLiteral NUGET = "nuget";
-        static constexpr StringLiteral ARIA2 = "aria2";
         static constexpr StringLiteral NODE = "node";
-        static constexpr StringLiteral IFW_INSTALLER_BASE = "ifw_installerbase";
         // This duplicate of CMake should only be used as a fallback to unpack
         static constexpr StringLiteral CMAKE_SYSTEM = "cmake_system";
         static constexpr StringLiteral PYTHON3 = "python3";

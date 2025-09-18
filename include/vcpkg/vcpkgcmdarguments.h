@@ -236,8 +236,6 @@ namespace vcpkg
 
         std::vector<std::string> cli_binary_sources;
         Optional<std::string> env_binary_sources;
-        Optional<std::string> actions_cache_url;
-        Optional<std::string> actions_runtime_token;
         Optional<std::string> nuget_id_prefix;
         Optional<bool> use_nuget_cache;
         Optional<std::string> vcpkg_nuget_repository;
@@ -298,7 +296,8 @@ namespace vcpkg
             f.dependency_graph = dependency_graph_enabled();
             return f;
         }
-        const Optional<StringLiteral>& detected_ci_environment() const { return m_detected_ci_environment; }
+        const Optional<StringLiteral>& detected_ci_environment_name() const { return m_detected_ci_environment_name; }
+        CIKind detected_ci() const { return m_detected_ci_environment_type; }
 
         const std::string& get_command() const noexcept { return command; }
 
@@ -333,7 +332,8 @@ namespace vcpkg
 
         std::string command;
 
-        Optional<StringLiteral> m_detected_ci_environment;
+        Optional<StringLiteral> m_detected_ci_environment_name;
+        CIKind m_detected_ci_environment_type = CIKind::None;
 
         friend LocalizedString usage_for_command(const CommandMetadata& command_metadata);
         CmdParser parser;

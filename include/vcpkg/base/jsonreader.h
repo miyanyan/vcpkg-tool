@@ -18,12 +18,8 @@ namespace vcpkg::Json
         using type = Type;
         virtual LocalizedString type_name() const = 0;
 
-    private:
-        friend struct Reader;
         Optional<Type> visit(Reader&, const Value&) const;
         Optional<Type> visit(Reader&, const Object&) const;
-
-    public:
         virtual Optional<Type> visit_null(Reader&) const;
         virtual Optional<Type> visit_boolean(Reader&, bool) const;
         virtual Optional<Type> visit_integer(Reader& r, int64_t i) const;
@@ -33,42 +29,32 @@ namespace vcpkg::Json
         virtual Optional<Type> visit_object(Reader&, const Object&) const;
         virtual View<StringLiteral> valid_fields() const noexcept;
 
-        virtual ~IDeserializer() = default;
-
     protected:
         IDeserializer() = default;
-        IDeserializer(const IDeserializer&) = default;
-        IDeserializer& operator=(const IDeserializer&) = default;
-        IDeserializer(IDeserializer&&) = default;
-        IDeserializer& operator=(IDeserializer&&) = default;
+        IDeserializer(const IDeserializer&) = delete;
+        IDeserializer& operator=(const IDeserializer&) = delete;
+        ~IDeserializer() = default;
     };
 
     struct Reader
     {
         explicit Reader(StringView origin);
 
-        const std::vector<LocalizedString>& errors() const { return m_errors; }
-
         void add_missing_field_error(const LocalizedString& type, StringView key, const LocalizedString& key_type);
         void add_expected_type_error(const LocalizedString& expected_type);
         void add_extra_field_error(const LocalizedString& type, StringView fields, StringView suggestion = {});
         void add_generic_error(const LocalizedString& type, StringView message);
+        void add_field_name_error(const LocalizedString& type, StringView field, StringView message);
 
-        void add_warning(LocalizedString type, StringView msg);
-
-        const std::vector<LocalizedString>& warnings() const { return m_warnings; }
-
-        LocalizedString join() const;
+        void add_warning(LocalizedString type, StringView message);
+        const ParseMessages& messages() const noexcept { return m_messages; }
 
         std::string path() const noexcept;
         StringView origin() const noexcept;
 
     private:
-        template<class Type>
-        friend struct IDeserializer;
+        ParseMessages m_messages;
 
-        std::vector<LocalizedString> m_errors;
-        std::vector<LocalizedString> m_warnings;
         struct JsonPathElement
         {
             constexpr JsonPathElement() = default;
@@ -168,19 +154,25 @@ namespace vcpkg::Json
             }
         }
 
+        // returns a pointer to the emplaced value, or nullptr
         template<class Type>
-        Optional<Type> visit(const Value& value, const IDeserializer<Type>& visitor)
+        Type* optional_object_field_emplace(const Object& obj,
+                                            StringView key,
+                                            Optional<Type>& place,
+                                            const IDeserializer<Type>& visitor)
         {
-            return visitor.visit(*this, value);
-        }
-        template<class Type>
-        Optional<Type> visit(const Object& value, const IDeserializer<Type>& visitor)
-        {
-            return visitor.visit(*this, value);
+            if (auto value = obj.get(key))
+            {
+                Type& emplaced = place.emplace();
+                visit_in_key(*value, key, emplaced, visitor);
+                return &emplaced;
+            }
+
+            return nullptr;
         }
 
-        template<class Type>
-        Optional<std::vector<Type>> array_elements(const Array& arr, const IDeserializer<Type>& visitor)
+        template<class Type, class Fn>
+        Optional<std::vector<Type>> array_elements_fn(const Array& arr, const IDeserializer<Type>& visitor, Fn callback)
         {
             Optional<std::vector<Type>> result{std::vector<Type>()};
             auto& result_vec = *result.get();
@@ -189,7 +181,7 @@ namespace vcpkg::Json
             for (size_t i = 0; i < arr.size(); ++i)
             {
                 m_path.back().index = static_cast<int64_t>(i);
-                auto opt = visitor.visit(*this, arr[i]);
+                auto opt = callback(*this, visitor, arr[i]);
                 if (auto parsed = opt.get())
                 {
                     if (success)
@@ -206,6 +198,15 @@ namespace vcpkg::Json
             }
 
             return result;
+        }
+
+        template<class Type>
+        Optional<std::vector<Type>> array_elements(const Array& arr, const IDeserializer<Type>& visitor)
+        {
+            return array_elements_fn(
+                arr, visitor, [](Reader& this_, const IDeserializer<Type>& visitor, const Json::Value& value) {
+                    return visitor.visit(this_, value);
+                });
         }
 
         static uint64_t get_reader_stats();

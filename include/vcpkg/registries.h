@@ -56,8 +56,6 @@ namespace vcpkg
 
     struct RegistryEntry
     {
-        virtual ExpectedL<View<Version>> get_port_versions() const = 0;
-
         virtual ExpectedL<SourceControlFileAndLocation> try_load_port(const Version& version) const = 0;
 
         virtual ~RegistryEntry() = default;
@@ -211,14 +209,8 @@ namespace vcpkg
 
     ExpectedL<std::map<std::string, Version, std::less<>>> get_builtin_baseline(const VcpkgPaths& paths);
 
-    bool is_git_commit_sha(StringView sv);
-
     // Returns the effective match length of the package pattern `pattern` against `name`.
     // No match is 0, exact match is SIZE_MAX, wildcard match is the length of the pattern.
     // Note that the * is included in the match size to distinguish from 0 == no match.
     size_t package_pattern_match(StringView name, StringView pattern);
-
-    std::unique_ptr<Json::IDeserializer<std::vector<GitVersionDbEntry>>> make_git_version_db_deserializer();
-    std::unique_ptr<Json::IDeserializer<std::vector<FilesystemVersionDbEntry>>> make_filesystem_version_db_deserializer(
-        const Path& root);
 }

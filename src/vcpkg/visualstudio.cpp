@@ -24,6 +24,7 @@ namespace vcpkg::VisualStudio
     static constexpr StringLiteral V_141 = "v141";
     static constexpr StringLiteral V_142 = "v142";
     static constexpr StringLiteral V_143 = "v143";
+    static constexpr StringLiteral V_145 = "v145";
 
     struct VisualStudioInstance
     {
@@ -168,6 +169,7 @@ namespace vcpkg::VisualStudio
 
         // VS 2017 changed the installer such that cl.exe cannot be found by path navigation and
         // the env variable is only set when vcvars has been run. Therefore we close the safety valves.
+        maybe_append_comntools("vs180comntools", "18.0", false);
         maybe_append_comntools("vs170comntools", "17.0", false);
         maybe_append_comntools("vs160comntools", "16.0", false);
         maybe_append_legacy_vs("vs140comntools", "Microsoft Visual Studio 14.0", "14.0");
@@ -196,9 +198,8 @@ namespace vcpkg::VisualStudio
         const SortedVector<VisualStudioInstance, decltype(&VisualStudioInstance::preferred_first_comparator)> sorted{
             get_visual_studio_instances_internal(fs), VisualStudioInstance::preferred_first_comparator};
 
-        const bool v140_is_available = Util::find_if(sorted, [&](const VisualStudioInstance& vs_instance) {
-                                           return vs_instance.major_version() == "14";
-                                       }) != sorted.end();
+        const bool v140_is_available = Util::any_of(
+            sorted, [&](const VisualStudioInstance& vs_instance) { return vs_instance.major_version() == "14"; });
 
         for (const VisualStudioInstance& vs_instance : sorted)
         {
@@ -236,6 +237,8 @@ namespace vcpkg::VisualStudio
                 // Host arm64
                 if (fs.exists(vcvarsall_dir / "vcvarsarm64.bat", IgnoreErrors{}))
                     supported_architectures.push_back({"arm64", CPU::ARM64, CPU::ARM64});
+                if (fs.exists(vcvarsall_dir / "vcvarsarm64_arm.bat", IgnoreErrors{}))
+                    supported_architectures.push_back({"arm64_arm", CPU::ARM64, CPU::ARM});
                 if (fs.exists(vcvarsall_dir / "vcvarsarm64_x86.bat", IgnoreErrors{}))
                     supported_architectures.push_back({"arm64_x86", CPU::ARM64, CPU::X86});
                 if (fs.exists(vcvarsall_dir / "vcvarsarm64_amd64.bat", IgnoreErrors{}))
@@ -272,6 +275,10 @@ namespace vcpkg::VisualStudio
                     else if (toolset_version_prefix[3] == '3' || toolset_version_prefix[3] == '4')
                     {
                         toolset_version = V_143;
+                    }
+                    else if (toolset_version_prefix[3] == '5')
+                    {
+                        toolset_version = V_145;
                     }
                     else
                     {

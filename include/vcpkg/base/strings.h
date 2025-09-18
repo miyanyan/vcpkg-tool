@@ -99,18 +99,6 @@ namespace vcpkg::Strings
         return std::move(into);
     }
 
-    template<class... Args, class = void>
-    [[nodiscard]] std::string concat_or_view(Args&&... args)
-    {
-        return Strings::concat(static_cast<Args&&>(args)...);
-    }
-
-    template<class T, class = std::enable_if_t<std::is_convertible_v<T, StringView>>>
-    [[nodiscard]] StringView concat_or_view(const T& v)
-    {
-        return v;
-    }
-
 #if defined(_WIN32)
     std::wstring to_utf16(StringView s);
 
@@ -120,16 +108,15 @@ namespace vcpkg::Strings
     std::string to_utf8(const std::wstring& ws);
 #endif
 
-    const char* case_insensitive_ascii_search(StringView s, StringView pattern);
-    bool case_insensitive_ascii_contains(StringView s, StringView pattern);
+    const char* case_insensitive_ascii_search(StringView s, StringView pattern) noexcept;
+    bool case_insensitive_ascii_contains(StringView s, StringView pattern) noexcept;
     bool case_insensitive_ascii_equals(StringView left, StringView right) noexcept;
-    bool case_insensitive_ascii_less(StringView left, StringView right);
+    bool case_insensitive_ascii_less(StringView left, StringView right) noexcept;
 
     void inplace_ascii_to_lowercase(char* first, char* last);
     void inplace_ascii_to_lowercase(std::string& s);
     [[nodiscard]] std::string ascii_to_lowercase(StringView s);
     [[nodiscard]] std::string ascii_to_uppercase(StringView s);
-    void append_ascii_lowercase(std::string& target, StringView s);
 
     bool case_insensitive_ascii_starts_with(StringView s, StringView pattern);
     bool case_insensitive_ascii_ends_with(StringView s, StringView pattern);
@@ -187,7 +174,11 @@ namespace vcpkg::Strings
 
     void inplace_trim(std::string& s);
 
+    void inplace_trim_end(std::string& s);
+
     [[nodiscard]] StringView trim(StringView sv);
+
+    [[nodiscard]] StringView trim_end(StringView sv);
 
     void inplace_trim_all_and_remove_whitespace_strings(std::vector<std::string>& strings);
 
@@ -198,6 +189,8 @@ namespace vcpkg::Strings
     [[nodiscard]] std::vector<std::string> split_paths(StringView s);
 
     const char* find_first_of(StringView searched, StringView candidates);
+
+    [[nodiscard]] std::string::size_type find_last(StringView searched, char c);
 
     [[nodiscard]] std::vector<StringView> find_all_enclosed(StringView input,
                                                             StringView left_delim,
@@ -245,9 +238,6 @@ namespace vcpkg::Strings
     Optional<double> strto<double>(StringView);
 
     const char* search(StringView haystack, StringView needle);
-
-    bool contains(StringView haystack, StringView needle);
-    bool contains(StringView haystack, char needle);
 
     // base 32 encoding, following IETF RFC 4648
     [[nodiscard]] std::string b32_encode(std::uint64_t x) noexcept;

@@ -216,9 +216,10 @@ Build-Depends: bzip
     REQUIRE(maybe_scf.has_value());
     SourceControlFileAndLocation scfl{std::move(*maybe_scf.get()), Path()};
 
+    PackagesDirAssigner packages_dir_assigner{"test_packages_root"};
     InstallPlanAction ipa(PackageSpec{"zlib2", Test::X64_WINDOWS},
                           scfl,
-                          "test_packages_root",
+                          packages_dir_assigner,
                           RequestType::USER_REQUESTED,
                           UseHeadVersion::No,
                           Editable::No,
@@ -327,9 +328,8 @@ Dependencies:
 TEST_CASE ("Provider nullptr checks", "[BinaryCache]")
 {
     // create a binary cache to test
-    BinaryProviders providers;
-    providers.read.emplace_back(std::make_unique<KnowNothingBinaryProvider>());
-    ReadOnlyBinaryCache uut(std::move(providers));
+    ReadOnlyBinaryCache uut;
+    uut.install_read_provider(std::make_unique<KnowNothingBinaryProvider>());
 
     // create an action plan with an action without a package ABI set
     auto pghs = Paragraphs::parse_paragraphs(R"(
@@ -343,9 +343,10 @@ Description:
     REQUIRE(maybe_scf.has_value());
     SourceControlFileAndLocation scfl{std::move(*maybe_scf.get()), Path()};
     std::vector<InstallPlanAction> install_plan;
+    PackagesDirAssigner packages_dir_assigner{"test_packages_root"};
     install_plan.emplace_back(PackageSpec{"someheadpackage", Test::X64_WINDOWS},
                               scfl,
-                              "test_packages_root",
+                              packages_dir_assigner,
                               RequestType::USER_REQUESTED,
                               UseHeadVersion::No,
                               Editable::No,
@@ -421,9 +422,10 @@ Description: a spiffy compression library wrapper
     auto maybe_scf = SourceControlFile::parse_control_file("test-origin", std::move(*pghs.get()));
     REQUIRE(maybe_scf.has_value());
     SourceControlFileAndLocation scfl{std::move(*maybe_scf.get()), Path()};
+    PackagesDirAssigner packages_dir_assigner{"test_packages_root"};
     plan.install_actions.emplace_back(PackageSpec("zlib", Test::X64_ANDROID),
                                       scfl,
-                                      "test_packages_root",
+                                      packages_dir_assigner,
                                       RequestType::USER_REQUESTED,
                                       UseHeadVersion::No,
                                       Editable::No,
@@ -452,7 +454,7 @@ Description: a spiffy compression library wrapper
     SourceControlFileAndLocation scfl2{std::move(*maybe_scf2.get()), Path()};
     plan.install_actions.emplace_back(PackageSpec("zlib2", Test::X64_ANDROID),
                                       scfl2,
-                                      "test_packages_root",
+                                      packages_dir_assigner,
                                       RequestType::USER_REQUESTED,
                                       UseHeadVersion::No,
                                       Editable::No,
@@ -469,4 +471,183 @@ Description: a spiffy compression library wrapper
   <package id="zlib2_x64-android" version="1.52.0-vcpkgpackageabi2"/>
 </packages>
 )");
+}
+
+TEST_CASE ("Synchronizer operations", "[BinaryCache]")
+{
+    {
+        BinaryCacheSynchronizer sync;
+        auto result = sync.fetch_add_completed();
+        REQUIRE(result.jobs_submitted == 0);
+        REQUIRE(result.jobs_completed == 1);
+        REQUIRE_FALSE(result.submission_complete);
+    }
+
+    {
+        BinaryCacheSynchronizer sync;
+        sync.add_submitted();
+        sync.add_submitted();
+        auto result = sync.fetch_add_completed();
+        REQUIRE(result.jobs_submitted == 2);
+        REQUIRE(result.jobs_completed == 1);
+        REQUIRE_FALSE(result.submission_complete);
+    }
+
+    {
+        BinaryCacheSynchronizer sync;
+        sync.add_submitted();
+        REQUIRE(sync.fetch_incomplete_mark_submission_complete() == 1);
+        sync.add_submitted();
+        REQUIRE(sync.fetch_incomplete_mark_submission_complete() == 2);
+        auto result = sync.fetch_add_completed();
+        REQUIRE(result.jobs_submitted == 2);
+        REQUIRE(result.jobs_completed == 1);
+        REQUIRE(result.submission_complete);
+        result = sync.fetch_add_completed();
+        REQUIRE(result.jobs_submitted == 2);
+        REQUIRE(result.jobs_completed == 2);
+        REQUIRE(result.submission_complete);
+    }
+
+    {
+        BinaryCacheSynchronizer sync;
+        sync.add_submitted();
+        sync.add_submitted();
+        sync.add_submitted();
+        auto result = sync.fetch_add_completed();
+        REQUIRE(result.jobs_submitted == 3);
+        REQUIRE(result.jobs_completed == 1);
+        REQUIRE_FALSE(result.submission_complete);
+        REQUIRE(sync.fetch_incomplete_mark_submission_complete() == 2);
+        result = sync.fetch_add_completed();
+        REQUIRE(result.jobs_submitted == 2);
+        REQUIRE(result.jobs_completed == 1);
+        REQUIRE(result.submission_complete);
+        result = sync.fetch_add_completed();
+        REQUIRE(result.jobs_submitted == 2);
+        REQUIRE(result.jobs_completed == 2);
+        REQUIRE(result.submission_complete);
+    }
+}
+
+TEST_CASE ("Test batch_command_arguments_with_fixed_length", "[batch-arguments]")
+{
+    static constexpr std::size_t MAX_LEN = 100;
+    static constexpr std::size_t FIXED_LEN = 10;
+
+    SECTION ("no-separator")
+    {
+        static constexpr StringLiteral NO_SEPARATOR = "";
+
+        std::vector<std::string> entries;
+        for (std::size_t i = 0; i < 10; ++i)
+            entries.push_back(fmt::format("entryidx_{}", i));
+        auto batches = batch_command_arguments_with_fixed_length(
+            entries, FIXED_LEN, MAX_LEN, entries[0].length(), NO_SEPARATOR.size());
+
+        REQUIRE(batches.size() == 2);
+        REQUIRE(batches[0].size() == 9);
+        REQUIRE(batches[1].size() == 1);
+        CHECK(batches[0] == std::vector<std::string>{
+                                "entryidx_0",
+                                "entryidx_1",
+                                "entryidx_2",
+                                "entryidx_3",
+                                "entryidx_4",
+                                "entryidx_5",
+                                "entryidx_6",
+                                "entryidx_7",
+                                "entryidx_8",
+                            });
+        CHECK(batches[1] == std::vector<std::string>{
+                                "entryidx_9",
+                            });
+        auto command_len = Strings::join(NO_SEPARATOR, batches[0]).length();
+        CHECK(command_len == MAX_LEN - FIXED_LEN);
+        command_len = Strings::join(NO_SEPARATOR, batches[1]).length();
+        CHECK(command_len < MAX_LEN - FIXED_LEN);
+    }
+
+    SECTION ("separator-and-extension")
+    {
+        static constexpr StringLiteral SEPARATOR = ";";
+        static constexpr StringLiteral EXTENSION = ".zip";
+
+        std::vector<std::string> entries;
+        for (std::size_t i = 0; i < 10; ++i)
+            entries.push_back(fmt::format("entryidx_{}", i));
+        auto batches = batch_command_arguments_with_fixed_length(
+            entries, FIXED_LEN, MAX_LEN, entries[0].length() + EXTENSION.size(), SEPARATOR.size());
+
+        REQUIRE(batches.size() == 2);
+        REQUIRE(batches[0].size() == 6);
+        REQUIRE(batches[1].size() == 4);
+        CHECK(batches[0] == std::vector<std::string>{
+                                "entryidx_0",
+                                "entryidx_1",
+                                "entryidx_2",
+                                "entryidx_3",
+                                "entryidx_4",
+                                "entryidx_5",
+                            });
+        CHECK(batches[1] == std::vector<std::string>{
+                                "entryidx_6",
+                                "entryidx_7",
+                                "entryidx_8",
+                                "entryidx_9",
+                            });
+        auto command_len =
+            Strings::join(SEPARATOR, Util::fmap(batches[0], [](auto&& s) { return s + EXTENSION.to_string(); }))
+                .length();
+        CHECK(command_len < MAX_LEN - FIXED_LEN);
+        command_len =
+            Strings::join(SEPARATOR, Util::fmap(batches[1], [](auto&& s) { return s + EXTENSION.to_string(); }))
+                .length();
+        CHECK(command_len < MAX_LEN - FIXED_LEN);
+    }
+
+    SECTION ("too-long-entry")
+    {
+        std::vector<std::string> entries;
+        for (std::size_t i = 0; i < 3; ++i)
+            entries.push_back(fmt::format("entry_{}", i));
+        auto batches =
+            batch_command_arguments_with_fixed_length(entries, FIXED_LEN, MAX_LEN, MAX_LEN - FIXED_LEN + 1, 0);
+        REQUIRE(batches.empty());
+    }
+
+    SECTION ("too-long-fixed-length")
+    {
+        std::vector<std::string> entries;
+        for (std::size_t i = 0; i < 3; ++i)
+            entries.push_back(fmt::format("entry_{}", i));
+        auto batches = batch_command_arguments_with_fixed_length(entries, MAX_LEN, MAX_LEN, entries[0].length(), 0);
+        REQUIRE(batches.empty());
+    }
+
+    SECTION ("empty-entries")
+    {
+        std::vector<std::string> entries;
+        auto batches = batch_command_arguments_with_fixed_length(entries, FIXED_LEN, MAX_LEN, 1, 0);
+        REQUIRE(batches.empty());
+    }
+
+    SECTION ("single-entry-fits")
+    {
+        std::vector<std::string> entries = {"single"};
+        auto batches = batch_command_arguments_with_fixed_length(entries, FIXED_LEN, MAX_LEN, entries[0].length(), 0);
+        REQUIRE(batches.size() == 1);
+        REQUIRE(batches[0].size() == 1);
+        CHECK(batches[0][0] == "single");
+    }
+
+    SECTION ("all entries fit in one batch")
+    {
+        std::vector<std::string> entries;
+        for (std::size_t i = 0; i < 3; ++i)
+            entries.push_back(fmt::format("entry_{}", i));
+        auto batches = batch_command_arguments_with_fixed_length(entries, FIXED_LEN, MAX_LEN, entries[0].length(), 0);
+        REQUIRE(batches.size() == 1);
+        REQUIRE(batches[0].size() == 3);
+    }
 }

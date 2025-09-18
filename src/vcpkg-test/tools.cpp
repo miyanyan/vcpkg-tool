@@ -26,7 +26,7 @@ CMake suite maintained and supported by Kitware (kitware.com/cmake).)");
     REQUIRE(result.has_value());
     CHECK(*result.get() == std::array<int, 3>{3, 22, 2});
 
-    result = parse_tool_version_string(R"(aria2 version 1.35.0
+    result = parse_tool_version_string(R"(example version 1.35.0
 Copyright (C) 2006, 2019 Tatsuhiro Tsujikawa)");
     REQUIRE(result.has_value());
     CHECK(*result.get() == std::array<int, 3>{1, 35, 0});
@@ -255,7 +255,7 @@ TEST_CASE ("parse_tool_data errors", "[tools]")
     REQUIRE(!invalid_os.has_value());
     CHECK(
         "invalid_os.json: error: $.tools[0].os (a tool data operating system): Invalid tool operating system: notanos. "
-        "Expected one of: windows, osx, linux, freebsd, openbsd" == invalid_os.error());
+        "Expected one of: windows, osx, linux, freebsd, openbsd, solaris" == invalid_os.error());
 
     auto invalid_version = parse_tool_data(R"(
 {

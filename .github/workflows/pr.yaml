@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "18.x"
+          node-version: "24.x"
           cache: 'npm'
           cache-dependency-path: vcpkg-artifacts/package-lock.json
       - uses: lukka/get-cmake@v3.31.0
@@ -65,7 +65,7 @@ jobs:
             exit 1
           }
       - name: 'Publish Format and Messages File Diff'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure() && steps.diff.outcome == 'failure'
         with:
           name: format.patch

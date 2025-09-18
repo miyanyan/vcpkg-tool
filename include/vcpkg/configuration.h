@@ -64,12 +64,8 @@ namespace vcpkg
         static View<StringView> known_fields();
     };
 
-    enum class ConfigurationSource
-    {
-        None,
-        VcpkgConfigurationFile,
-        ManifestFile,
-    };
+    StringLiteral configuration_source_file_name(ConfigurationSource source);
+    StringLiteral configuration_source_field(ConfigurationSource source);
 
     struct ConfigurationAndSource
     {
@@ -87,9 +83,10 @@ namespace vcpkg
     {
         Optional<std::string> builtin_baseline;
         Optional<Configuration> config;
+        ConfigurationSource config_source = ConfigurationSource::None;
     };
 
-    Json::IDeserializer<Configuration>& get_configuration_deserializer();
+    extern const Json::IDeserializer<Configuration>& configuration_deserializer;
     // Parse configuration from a file containing a valid vcpkg-configuration.json file
     Optional<Configuration> parse_configuration(StringView contents,
                                                 StringView origin,

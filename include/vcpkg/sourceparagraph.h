@@ -85,6 +85,72 @@ namespace vcpkg
                                                      Triplet host,
                                                      const std::unordered_map<std::string, std::string>& cmake_vars);
 
+    struct NullTag
+    {
+    };
+
+    enum class SpdxLicenseDeclarationKind
+    {
+        NotPresent,
+        Null,
+        String
+    };
+
+    struct SpdxApplicableLicenseExpression
+    {
+        std::string license_text;   // the expression text
+        bool needs_and_parenthesis; // if true, when combined with AND, extra ()s need to be added
+
+        std::string to_string() const;
+        void to_string(std::string& target) const;
+
+        friend bool operator==(const SpdxApplicableLicenseExpression& lhs,
+                               const SpdxApplicableLicenseExpression& rhs) noexcept;
+        friend bool operator!=(const SpdxApplicableLicenseExpression& lhs,
+                               const SpdxApplicableLicenseExpression& rhs) noexcept;
+        friend bool operator<(const SpdxApplicableLicenseExpression& lhs,
+                              const SpdxApplicableLicenseExpression& rhs) noexcept;
+        friend bool operator<=(const SpdxApplicableLicenseExpression& lhs,
+                               const SpdxApplicableLicenseExpression& rhs) noexcept;
+        friend bool operator>(const SpdxApplicableLicenseExpression& lhs,
+                              const SpdxApplicableLicenseExpression& rhs) noexcept;
+        friend bool operator>=(const SpdxApplicableLicenseExpression& lhs,
+                               const SpdxApplicableLicenseExpression& rhs) noexcept;
+    };
+
+    struct ParsedSpdxLicenseDeclaration
+    {
+        ParsedSpdxLicenseDeclaration();
+        ParsedSpdxLicenseDeclaration(NullTag);
+        ParsedSpdxLicenseDeclaration(std::string&& license_text,
+                                     std::vector<SpdxApplicableLicenseExpression>&& applicable_licenses);
+
+        ParsedSpdxLicenseDeclaration(const ParsedSpdxLicenseDeclaration&) = default;
+        ParsedSpdxLicenseDeclaration(ParsedSpdxLicenseDeclaration&&) = default;
+        ParsedSpdxLicenseDeclaration& operator=(const ParsedSpdxLicenseDeclaration&) = default;
+        ParsedSpdxLicenseDeclaration& operator=(ParsedSpdxLicenseDeclaration&&) = default;
+
+        std::string to_string() const;
+        void to_string(std::string& target) const;
+
+        friend bool operator==(const ParsedSpdxLicenseDeclaration& lhs,
+                               const ParsedSpdxLicenseDeclaration& rhs) noexcept;
+        friend bool operator!=(const ParsedSpdxLicenseDeclaration& lhs,
+                               const ParsedSpdxLicenseDeclaration& rhs) noexcept;
+
+        SpdxLicenseDeclarationKind kind() const noexcept { return m_kind; }
+        const std::string& license_text() const noexcept { return m_license_text; }
+        const std::vector<SpdxApplicableLicenseExpression>& applicable_licenses() const noexcept
+        {
+            return m_applicable_licenses;
+        }
+
+    private:
+        SpdxLicenseDeclarationKind m_kind;
+        std::string m_license_text;
+        std::vector<SpdxApplicableLicenseExpression> m_applicable_licenses;
+    };
+
     /// <summary>
     /// Port metadata of additional feature in a package (part of CONTROL file)
     /// </summary>
@@ -94,10 +160,7 @@ namespace vcpkg
         std::vector<std::string> description;
         std::vector<Dependency> dependencies;
         PlatformExpression::Expr supports_expression;
-        // there are two distinct "empty" states here
-        // "user did not provide a license" -> nullopt
-        // "user provided license = null" -> {""}
-        Optional<std::string> license; // SPDX license expression
+        ParsedSpdxLicenseDeclaration license;
 
         Json::Object extra_info;
 
@@ -122,13 +185,12 @@ namespace vcpkg
         std::vector<DependencyOverride> overrides;
         std::vector<DependencyRequestedFeature> default_features;
 
-        // there are two distinct "empty" states here
-        // "user did not provide a license" -> nullopt
-        // "user provided license = null" -> {""}
-        Optional<std::string> license; // SPDX license expression
+        ParsedSpdxLicenseDeclaration license;
 
         Optional<std::string> builtin_baseline;
-        Optional<Json::Object> vcpkg_configuration;
+
+        Optional<Json::Object> configuration;
+        ConfigurationSource configuration_source = ConfigurationSource::None;
         // Currently contacts is only a Json::Object but it will eventually be unified with maintainers
         Json::Object contacts;
 
@@ -140,13 +202,39 @@ namespace vcpkg
         friend bool operator!=(const SourceParagraph& lhs, const SourceParagraph& rhs) { return !(lhs == rhs); }
     };
 
+    enum class PortSourceKind
+    {
+        Unknown,
+        Builtin,
+        Overlay,
+        Git,
+        Filesystem,
+    };
+
+    struct NoAssertionTag
+    {
+    };
+
+    inline constexpr NoAssertionTag no_assertion;
+
     struct PortLocation
     {
+        explicit PortLocation(const Path& port_directory, NoAssertionTag, PortSourceKind kind);
+        explicit PortLocation(Path&& port_directory, NoAssertionTag, PortSourceKind kind);
+        explicit PortLocation(const Path& port_directory, std::string&& spdx_location, PortSourceKind kind);
+        explicit PortLocation(Path&& port_directory, std::string&& spdx_location, PortSourceKind kind);
+        PortLocation(const PortLocation&) = default;
+        PortLocation(PortLocation&&) = default;
+        PortLocation& operator=(const PortLocation&) = default;
+        PortLocation& operator=(PortLocation&&) = default;
+
         Path port_directory;
 
         /// Should model SPDX PackageDownloadLocation. Empty implies NOASSERTION.
         /// See https://spdx.github.io/spdx-spec/package-information/#77-package-download-location-field
         std::string spdx_location;
+
+        PortSourceKind kind;
     };
 
     /// <summary>
@@ -218,7 +306,7 @@ namespace vcpkg
                 scf = std::make_unique<SourceControlFile>(source_control_file->clone());
             }
 
-            return SourceControlFileAndLocation{std::move(scf), control_path, spdx_location};
+            return SourceControlFileAndLocation{std::move(scf), control_path, spdx_location, kind};
         }
 
         std::unique_ptr<SourceControlFile> source_control_file;
@@ -227,11 +315,14 @@ namespace vcpkg
         /// Should model SPDX PackageDownloadLocation. Empty implies NOASSERTION.
         /// See https://spdx.github.io/spdx-spec/package-information/#77-package-download-location-field
         std::string spdx_location;
+
+        PortSourceKind kind = PortSourceKind::Unknown;
     };
 
     void print_error_message(const LocalizedString& message);
 
-    std::string parse_spdx_license_expression(StringView sv, ParseMessages& messages);
+    ParsedSpdxLicenseDeclaration parse_spdx_license_expression(StringView sv, ParseMessages& messages);
+    ParsedSpdxLicenseDeclaration parse_spdx_license_expression_required(StringView sv);
 
     // Exposed for testing
     ExpectedL<std::vector<Dependency>> parse_dependencies_list(const std::string& str,

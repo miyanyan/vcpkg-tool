@@ -95,7 +95,7 @@ namespace
     // To disambiguate between two overloads
     constexpr struct
     {
-        bool operator()(char c) const noexcept { return std::isspace(static_cast<unsigned char>(c)) != 0; }
+        bool operator()(char c) const noexcept { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
     } is_space_char;
 
     constexpr struct
@@ -172,12 +172,12 @@ void Strings::to_utf8(std::string& output, const wchar_t* w, size_t size_in_char
 std::string Strings::to_utf8(const std::wstring& ws) { return to_utf8(ws.data(), ws.size()); }
 #endif
 
-const char* Strings::case_insensitive_ascii_search(StringView s, StringView pattern)
+const char* Strings::case_insensitive_ascii_search(StringView s, StringView pattern) noexcept
 {
     return std::search(s.begin(), s.end(), pattern.begin(), pattern.end(), icase_eq);
 }
 
-bool Strings::case_insensitive_ascii_contains(StringView s, StringView pattern)
+bool Strings::case_insensitive_ascii_contains(StringView s, StringView pattern) noexcept
 {
     return case_insensitive_ascii_search(s, pattern) != s.end();
 }
@@ -187,7 +187,7 @@ bool Strings::case_insensitive_ascii_equals(StringView left, StringView right) n
     return std::equal(left.begin(), left.end(), right.begin(), right.end(), icase_eq);
 }
 
-bool Strings::case_insensitive_ascii_less(StringView left, StringView right)
+bool Strings::case_insensitive_ascii_less(StringView left, StringView right) noexcept
 {
     return std::lexicographical_compare(left.begin(), left.end(), right.begin(), right.end(), icase_less);
 }
@@ -202,7 +202,7 @@ void Strings::inplace_ascii_to_lowercase(std::string& s)
 std::string Strings::ascii_to_lowercase(StringView s)
 {
     std::string result;
-    append_ascii_lowercase(result, s);
+    std::transform(s.begin(), s.end(), std::back_inserter(result), tolower_char);
     return result;
 }
 
@@ -211,11 +211,6 @@ std::string Strings::ascii_to_uppercase(StringView s)
     std::string result;
     std::transform(s.begin(), s.end(), std::back_inserter(result), to_upper_char);
     return result;
-}
-
-void Strings::append_ascii_lowercase(std::string& target, StringView s)
-{
-    std::transform(s.begin(), s.end(), std::back_inserter(target), tolower_char);
 }
 
 bool Strings::case_insensitive_ascii_starts_with(StringView s, StringView pattern)
@@ -230,16 +225,9 @@ bool Strings::case_insensitive_ascii_ends_with(StringView s, StringView pattern)
     return std::equal(s.end() - pattern.size(), s.end(), pattern.begin(), pattern.end(), icase_eq);
 }
 
-bool Strings::ends_with(StringView s, StringView pattern)
-{
-    if (s.size() < pattern.size()) return false;
-    return std::equal(s.end() - pattern.size(), s.end(), pattern.begin(), pattern.end());
-}
-bool Strings::starts_with(StringView s, StringView pattern)
-{
-    if (s.size() < pattern.size()) return false;
-    return std::equal(s.begin(), s.begin() + pattern.size(), pattern.begin(), pattern.end());
-}
+bool Strings::ends_with(StringView s, StringView pattern) { return s.ends_with(pattern); }
+
+bool Strings::starts_with(StringView s, StringView pattern) { return s.starts_with(pattern); }
 
 std::string Strings::replace_all(StringView s, StringView search, StringView rep)
 {
@@ -276,8 +264,13 @@ void Strings::inplace_replace_all(std::string& s, char search, char rep) noexcep
 
 void Strings::inplace_trim(std::string& s)
 {
-    s.erase(std::find_if_not(s.rbegin(), s.rend(), is_space_char).base(), s.end());
+    inplace_trim_end(s);
     s.erase(s.begin(), std::find_if_not(s.begin(), s.end(), is_space_char));
+}
+
+void Strings::inplace_trim_end(std::string& s)
+{
+    s.erase(std::find_if_not(s.rbegin(), s.rend(), is_space_char).base(), s.end());
 }
 
 StringView Strings::trim(StringView sv)
@@ -285,6 +278,12 @@ StringView Strings::trim(StringView sv)
     auto last = std::find_if_not(sv.rbegin(), sv.rend(), is_space_char).base();
     auto first = std::find_if_not(sv.begin(), sv.end(), is_space_char);
     return StringView(first, last);
+}
+
+StringView Strings::trim_end(StringView sv)
+{
+    auto last = std::find_if_not(sv.rbegin(), sv.rend(), is_space_char).base();
+    return StringView(sv.begin(), last);
 }
 
 void Strings::inplace_trim_all_and_remove_whitespace_strings(std::vector<std::string>& strings)
@@ -342,6 +341,12 @@ std::vector<std::string> Strings::split_paths(StringView s)
 const char* Strings::find_first_of(StringView input, StringView chars)
 {
     return std::find_first_of(input.begin(), input.end(), chars.begin(), chars.end());
+}
+
+std::string::size_type Strings::find_last(StringView searched, char c)
+{
+    auto iter = std::find(searched.rbegin(), searched.rend(), c);
+    return iter == searched.rend() ? std::string::npos : (&*iter - searched.begin());
 }
 
 std::vector<StringView> Strings::find_all_enclosed(StringView input, StringView left_delim, StringView right_delim)
@@ -508,16 +513,6 @@ bool Strings::equals(StringView a, StringView b)
 const char* Strings::search(StringView haystack, StringView needle)
 {
     return std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end());
-}
-
-bool Strings::contains(StringView haystack, StringView needle)
-{
-    return Strings::search(haystack, needle) != haystack.end();
-}
-
-bool Strings::contains(StringView haystack, char needle)
-{
-    return std::find(haystack.begin(), haystack.end(), needle) != haystack.end();
 }
 
 size_t Strings::byte_edit_distance(StringView a, StringView b)

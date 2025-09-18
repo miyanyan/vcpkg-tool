@@ -9,9 +9,6 @@
 #include <vcpkg/commands.export.h>
 #include <vcpkg/commands.install.h>
 #include <vcpkg/dependencies.h>
-#include <vcpkg/export.chocolatey.h>
-#include <vcpkg/export.ifw.h>
-#include <vcpkg/export.prefab.h>
 #include <vcpkg/input.h>
 #include <vcpkg/installedpaths.h>
 #include <vcpkg/portfileprovider.h>
@@ -250,12 +247,10 @@ namespace
         bool dry_run = false;
         bool raw = false;
         bool nuget = false;
-        bool ifw = false;
         bool zip = false;
         bool seven_zip = false;
-        bool chocolatey = false;
-        bool prefab = false;
         bool all_installed = false;
+        bool dereference_symlinks = false;
 
         Optional<std::string> maybe_output;
         Path output_dir;
@@ -264,9 +259,6 @@ namespace
         Optional<std::string> maybe_nuget_version;
         Optional<std::string> maybe_nuget_description;
 
-        IFW::Options ifw_options;
-        Prefab::Options prefab_options;
-        Chocolatey::Options chocolatey_options;
         std::vector<PackageSpec> specs;
     };
 
@@ -274,14 +266,10 @@ namespace
         {SwitchDryRun, msgCmdExportOptDryRun},
         {SwitchRaw, msgCmdExportOptRaw},
         {SwitchNuGet, msgCmdExportOptNuget},
-        {SwitchIfw, msgCmdExportOptIFW},
         {SwitchZip, msgCmdExportOptZip},
         {SwitchSevenZip, msgCmdExportOpt7Zip},
-        {SwitchXChocolatey, msgCmdExportOptChocolatey},
-        {SwitchPrefab, msgCmdExportOptPrefab},
-        {SwitchPrefabMaven, msgCmdExportOptMaven},
-        {SwitchPrefabDebug, msgCmdExportOptDebug},
         {SwitchXAllInstalled, msgCmdExportOptInstalled},
+        {SwitchDereferenceSymlinks, msgCmdExportOptDereferenceSymlinks},
     };
 
     constexpr CommandSetting EXPORT_SETTINGS[] = {
@@ -290,18 +278,6 @@ namespace
         {SwitchNuGetId, msgCmdExportSettingNugetID},
         {SwitchNuGetDescription, msgCmdExportSettingNugetDesc},
         {SwitchNuGetVersion, msgCmdExportSettingNugetVersion},
-        {SwitchIfwRepositoryUrl, msgCmdExportSettingRepoURL},
-        {SwitchIfwPackagesDirPath, msgCmdExportSettingPkgDir},
-        {SwitchIfwRepostitoryDirPath, msgCmdExportSettingRepoDir},
-        {SwitchIfwConfigFilePath, msgCmdExportSettingConfigFile},
-        {SwitchIfwInstallerFilePath, msgCmdExportSettingInstallerPath},
-        {SwitchXMaintainer, msgCmdExportSettingChocolateyMaint},
-        {SwitchXVersionSuffix, msgCmdExportSettingChocolateyVersion},
-        {SwitchPrefabGroupId, msgCmdExportSettingPrefabGroupID},
-        {SwitchPrefabArtifactId, msgCmdExportSettingPrefabArtifactID},
-        {SwitchPrefabVersion, msgCmdExportSettingPrefabVersion},
-        {SwitchPrefabMinSdk, msgCmdExportSettingSDKMinVersion},
-        {SwitchPrefabTargetSdk, msgCmdExportSettingSDKTargetVersion},
     };
 
     ExportArguments handle_export_command_arguments(const VcpkgPaths& paths,
@@ -316,15 +292,11 @@ namespace
         ret.dry_run = Util::Sets::contains(options.switches, SwitchDryRun);
         ret.raw = Util::Sets::contains(options.switches, SwitchRaw);
         ret.nuget = Util::Sets::contains(options.switches, SwitchNuGet);
-        ret.ifw = Util::Sets::contains(options.switches, SwitchIfw);
         ret.zip = Util::Sets::contains(options.switches, SwitchZip);
         ret.seven_zip = Util::Sets::contains(options.switches, SwitchSevenZip);
-        ret.chocolatey = Util::Sets::contains(options.switches, SwitchXChocolatey);
-        ret.prefab = Util::Sets::contains(options.switches, SwitchPrefab);
-        ret.prefab_options.enable_maven = Util::Sets::contains(options.switches, SwitchPrefabMaven);
-        ret.prefab_options.enable_debug = Util::Sets::contains(options.switches, SwitchPrefabDebug);
         ret.maybe_output = Util::lookup_value_copy(options.settings, SwitchOutput);
         ret.all_installed = Util::Sets::contains(options.switches, SwitchXAllInstalled);
+        ret.dereference_symlinks = Util::Sets::contains(options.switches, SwitchDereferenceSymlinks);
 
         if (paths.manifest_mode_enabled())
         {
@@ -373,8 +345,7 @@ namespace
             });
         }
 
-        if (!ret.raw && !ret.nuget && !ret.ifw && !ret.zip && !ret.seven_zip && !ret.dry_run && !ret.chocolatey &&
-            !ret.prefab)
+        if (!ret.raw && !ret.nuget && !ret.zip && !ret.seven_zip && !ret.dry_run)
         {
             msg::println_error(msgProvideExportType);
             msg::write_unlocalized_text(Color::none, CommandExportMetadata.get_example_text());
@@ -413,33 +384,6 @@ namespace
                             {SwitchNuGetDescription, ret.maybe_nuget_description},
                         });
 
-        options_implies(SwitchIfw,
-                        ret.ifw,
-                        {
-                            {SwitchIfwRepositoryUrl, ret.ifw_options.maybe_repository_url},
-                            {SwitchIfwPackagesDirPath, ret.ifw_options.maybe_packages_dir_path},
-                            {SwitchIfwRepostitoryDirPath, ret.ifw_options.maybe_repository_dir_path},
-                            {SwitchIfwConfigFilePath, ret.ifw_options.maybe_config_file_path},
-                            {SwitchIfwInstallerFilePath, ret.ifw_options.maybe_installer_file_path},
-                        });
-
-        options_implies(SwitchPrefab,
-                        ret.prefab,
-                        {
-                            {SwitchPrefabArtifactId, ret.prefab_options.maybe_artifact_id},
-                            {SwitchPrefabGroupId, ret.prefab_options.maybe_group_id},
-                            {SwitchPrefabMinSdk, ret.prefab_options.maybe_min_sdk},
-                            {SwitchPrefabTargetSdk, ret.prefab_options.maybe_target_sdk},
-                            {SwitchPrefabVersion, ret.prefab_options.maybe_version},
-                        });
-
-        options_implies(SwitchXChocolatey,
-                        ret.chocolatey,
-                        {
-                            {SwitchXMaintainer, ret.chocolatey_options.maybe_maintainer},
-                            {SwitchXVersionSuffix, ret.chocolatey_options.maybe_version_suffix},
-                        });
-
         return ret;
     }
 
@@ -475,22 +419,19 @@ namespace
                 msg::println(msgExportingPackage, msg::package_name = action.spec);
 
                 const BinaryParagraph& binary_paragraph = action.core_paragraph().value_or_exit(VCPKG_LINE_INFO);
-
-                const InstallDir dirs =
-                    InstallDir::from_destination_root(export_paths, action.spec.triplet(), binary_paragraph);
+                const auto& triplet_canonical_name = action.spec.triplet().canonical_name();
 
                 auto lines =
                     fs.read_lines(paths.installed().listfile_path(binary_paragraph)).value_or_exit(VCPKG_LINE_INFO);
-                std::vector<Path> files;
-                for (auto&& suffix : lines)
-                {
-                    if (suffix.empty()) continue;
-                    if (suffix.back() == '/') suffix.pop_back();
-                    if (suffix == action.spec.triplet().to_string()) continue;
-                    files.push_back(paths.installed().root() / suffix);
-                }
-
-                install_files_and_write_listfile(fs, paths.installed().triplet_dir(action.spec.triplet()), files, dirs);
+                auto proximate_files = convert_list_to_proximate_files(std::move(lines), triplet_canonical_name);
+                install_files_and_write_listfile(fs,
+                                                 paths.installed().triplet_dir(action.spec.triplet()),
+                                                 proximate_files,
+                                                 export_paths.root(),
+                                                 triplet_canonical_name,
+                                                 export_paths.listfile_path(binary_paragraph),
+                                                 opts.dereference_symlinks ? SymlinkHydrate::CopyData
+                                                                           : SymlinkHydrate::CopySymlinks);
             }
         }
 
@@ -617,9 +558,9 @@ namespace vcpkg
         print_export_plan(group_by_plan_type);
 
         const bool has_non_user_requested_packages =
-            Util::find_if(export_plan, [](const ExportPlanAction& package) -> bool {
+            Util::any_of(export_plan, [](const ExportPlanAction& package) -> bool {
                 return package.request_type != RequestType::USER_REQUESTED;
-            }) != export_plan.cend();
+            });
 
         if (has_non_user_requested_packages)
         {
@@ -651,23 +592,27 @@ namespace vcpkg
             handle_raw_based_export(export_plan, opts, export_id, paths);
         }
 
-        if (opts.ifw)
-        {
-            IFW::do_export(export_plan, export_id, opts.ifw_options, paths);
-
-            print_next_step_info("@RootDir@/src/vcpkg");
-        }
-
-        if (opts.chocolatey)
-        {
-            Chocolatey::do_export(export_plan, paths, opts.chocolatey_options);
-        }
-
-        if (opts.prefab)
-        {
-            Prefab::do_export(export_plan, paths, opts.prefab_options, default_triplet);
-        }
-
         Checks::exit_success(VCPKG_LINE_INFO);
+    }
+
+    std::vector<std::string> convert_list_to_proximate_files(std::vector<std::string>&& lines,
+                                                             StringView triplet_canonical_name)
+    {
+        auto prefix_length = triplet_canonical_name.size() + 1; // +1 for the trailing '/'
+        std::vector<std::string> proximate_files;
+        for (auto&& suffix : lines)
+        {
+            if (suffix.size() <= prefix_length)
+            {
+                continue;
+            }
+
+            suffix.erase(0, prefix_length);
+            if (suffix.back() == '/') suffix.pop_back();
+            if (suffix.empty()) continue;
+            proximate_files.emplace_back(std::move(suffix));
+        }
+
+        return proximate_files;
     }
 } // namespace vcpkg
