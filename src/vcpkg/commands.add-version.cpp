@@ -5,6 +5,7 @@
 #include <vcpkg/base/git.h>
 #include <vcpkg/base/json.h>
 #include <vcpkg/base/strings.h>
+#include <vcpkg/base/system.h>
 #include <vcpkg/base/system.process.h>
 #include <vcpkg/base/util.h>
 
@@ -132,7 +133,7 @@ namespace
 
     static void write_json_file(const Filesystem& fs, const Json::Object& obj, const Path& output_path)
     {
-        auto new_path = output_path + ".tmp";
+        auto new_path = output_path + "." + std::to_string(get_process_id()) + ".tmp";
         fs.create_directories(output_path.parent_path(), VCPKG_LINE_INFO);
         fs.write_contents(new_path, Json::stringify(obj), VCPKG_LINE_INFO);
         fs.rename(new_path, output_path, VCPKG_LINE_INFO);
